@@ -1,0 +1,290 @@
+// SECTION 1: Create Nodes
+
+// 1. Create Crash nodes
+// Each crash has a crash ID, type, and total number of fatalities
+LOAD CSV WITH HEADERS FROM 'file:///crash_node.csv' AS row
+CREATE (:Crash {
+  crashID: row.`Crash ID`,
+  crashType: row.`Crash Type`,
+  numberFatalities: toInteger(row.`Number Fatalities`)
+});
+
+// 2. Create Vehicle nodes
+// Each vehicle record includes type involvement flags (bus/truck etc.)
+LOAD CSV WITH HEADERS FROM 'file:///vehicle_node.csv' AS row
+CREATE (:Vehicle {
+  vehicleID: row.vehicleID,
+  busInvolvement: row.`Bus Involvement`,
+  heavyRigidTruckInvolvement: row.`Heavy Rigid Truck Involvement`,
+  articulatedTruckInvolvement: row.`Articulated Truck Involvement`
+});
+
+// 3. Create Killed_Person nodes
+// Includes demographic attributes (gender, age, road user type, etc.)
+LOAD CSV WITH HEADERS FROM 'file:///killed_person_node.csv' AS row
+CREATE (:Killed_Person {
+  personID: row.personID,
+  roadUser: row.`Road User`,
+  gender: row.Gender,
+  age: toInteger(row.Age),
+  ageGroup: row.`Age Group`
+});
+
+// 4. Create TimeInfo nodes
+// Includes time, day of week, month, year, and holiday flags
+LOAD CSV WITH HEADERS FROM 'file:///timeinfo_node.csv' AS row
+CREATE (:TimeInfo {
+  timeID: row.timeID,
+  time: row.Time,
+  timeOfDay: row.`Time of day`,
+  dayType: row.`Day of week`,
+  month: toInteger(row.Month),
+  year: toInteger(row.Year),
+  dayweek: row.Dayweek,
+  christmasPeriod: row.`Christmas Period`,
+  easterPeriod: row.`Easter Period`
+});
+
+// 5. Create Road nodes
+// Includes road classification and speed limit
+LOAD CSV WITH HEADERS FROM 'file:///road_node.csv' AS row
+CREATE (:Road {
+  roadID: row.roadID,
+  speedLimit: toInteger(row.`Speed Limit`),
+  nationalRoadType: row.`National Road Type`
+});
+
+// 6. Create Location nodes
+// Describes location of crashes including region and remoteness
+LOAD CSV WITH HEADERS FROM 'file:///location_node.csv' AS row
+CREATE (:Location {
+  locationID: row.locationID,
+  lgaName: row.lgaName,
+  sa4: row.sa4,
+  state: row.state,
+  nationalRemotenessAreas: row.nationalRemotenessAreas
+});
+
+
+// SECTION 2: Create Relationships
+
+// 1. Vehicle → Crash
+LOAD CSV WITH HEADERS FROM 'file:///rel_involved_in.csv' AS row
+MATCH (v:Vehicle {vehicleID: row.vehicleID})
+MATCH (c:Crash {crashID: row.crashID})
+CREATE (v)-[:INVOLVED_IN]->(c);
+
+// 2. Killed_Person → Crash
+LOAD CSV WITH HEADERS FROM 'file:///rel_killed_in.csv' AS row
+MATCH (p:Killed_Person {personID: row.personID})
+MATCH (c:Crash {crashID: row.crashID})
+CREATE (p)-[:KILLED_IN]->(c);
+
+// 3. Crash → TimeInfo
+LOAD CSV WITH HEADERS FROM 'file:///rel_happened_during.csv' AS row
+MATCH (c:Crash {crashID: row.crashID})
+MATCH (t:TimeInfo {timeID: row.timeID})
+CREATE (c)-[:HAPPENED_DURING]->(t);
+
+// 4. Crash → Road
+LOAD CSV WITH HEADERS FROM 'file:///rel_happened_on.csv' AS row
+MATCH (c:Crash {crashID: row.crashID})
+MATCH (r:Road {roadID: row.roadID})
+CREATE (c)-[:HAPPENED_ON]->(r);
+
+// 5. Crash → Location
+LOAD CSV WITH HEADERS FROM 'file:///rel_located_in.csv' AS row
+MATCH (c:Crash {crashID: row.crashID})
+MATCH (l:Location {locationID: row.locationID})
+CREATE (c)-[:LOCATED_IN]->(l);
+
+// SECTION 3: Query a - Query f
+
+// query a
+MATCH (v:Vehicle)-[:INVOLVED_IN]->(c:Crash),
+      (p:Killed_Person)-[:KILLED_IN]->(c),
+      (c)-[:HAPPENED_DURING]->(t:TimeInfo),
+      (c)-[:LOCATED_IN]->(l:Location)
+WHERE l.state = 'WA'
+  AND t.year >= 2020 AND t.year <= 2024
+  AND v.articulatedTruckInvolvement = 'Yes'
+  AND c.numberFatalities > 1
+RETURN DISTINCT 
+    p.roadUser AS `Road User`,
+    p.age AS `Age`,
+    p.gender AS `Gender`,
+    l.lgaName AS `LGA Name`,
+    t.month AS `Month`,
+    t.year AS `Year`,
+    c.numberFatalities AS `Total Number of Fatalities`
+ORDER BY `Year`, `Month`;
+
+// query b
+MATCH (p:Killed_Person)-[:KILLED_IN]->(c:Crash),
+      (c)-[:HAPPENED_DURING]->(t:TimeInfo),
+      (c)-[:LOCATED_IN]->(l:Location)
+WHERE p.roadUser = 'Motorcycle rider'
+  AND (t.christmasPeriod = 'Yes' OR t.easterPeriod = 'Yes')
+  AND l.nationalRemotenessAreas = 'Inner Regional Australia'
+RETURN 
+  p.gender AS `Gender`,
+  MAX(p.age) AS `Maximum Age`,
+  MIN(p.age) AS `Minimum Age`;
+
+// query c
+MATCH (p:Killed_Person)-[:KILLED_IN]->(c:Crash),
+      (c)-[:HAPPENED_DURING]->(t:TimeInfo),
+      (c)-[:LOCATED_IN]->(l:Location)
+WHERE p.ageGroup = '17_to_25'
+  AND p.roadUser = 'Driver'
+  AND t.year = 2024
+WITH DISTINCT p.personID AS pid, p.age AS age, t.dayType AS dayType, l.state AS stateName
+RETURN
+  stateName AS `State`,
+  COUNT(CASE WHEN dayType = 'Weekend' THEN 1 END) AS `Weekend Crashes`,
+  COUNT(CASE WHEN dayType = 'Weekday' THEN 1 END) AS `Weekday Crashes`,
+  ROUND(AVG(age), 1) AS `Average Age`
+ORDER BY `State`;
+
+
+// query d
+MATCH (p:Killed_Person)-[:KILLED_IN]->(c:Crash),
+      (c)-[:HAPPENED_DURING]->(t:TimeInfo),
+      (c)-[:LOCATED_IN]->(l:Location),
+      (c)-[:HAPPENED_ON]->(r:Road)
+WHERE l.state = 'WA'
+  AND t.dayweek = 'Friday'
+  AND t.dayType = 'Weekend'
+  AND c.numberFatalities > 1
+WITH c, 
+     l.sa4 AS sa4Name, 
+     l.nationalRemotenessAreas AS remoteness, 
+     r.nationalRoadType AS roadType, 
+     COLLECT(p.gender) AS genders
+WHERE 'Male' IN genders AND 'Female' IN genders
+RETURN DISTINCT 
+  sa4Name AS `SA4 Name`,
+  remoteness AS `National Remoteness Areas`,
+  roadType AS `National Road Type`
+ORDER BY `SA4 Name`;
+
+
+// query e
+MATCH (c:Crash)-[:HAPPENED_DURING]->(t:TimeInfo),
+      (c)-[:LOCATED_IN]->(l:Location)
+WHERE (t.time >= '07:00' AND t.time <= '09:00') 
+   OR (t.time >= '16:00' AND t.time <= '18:00')
+WITH l.sa4 AS sa4Name,
+     CASE 
+       WHEN t.time >= '07:00' AND t.time <= '09:00' THEN 'Morning Peak'
+       ELSE 'Afternoon Peak'
+     END AS peakPeriod
+RETURN 
+  sa4Name AS `SA4 Name`,
+  COUNT(CASE WHEN peakPeriod = 'Morning Peak' THEN 1 END) AS `Morning Peak`,
+  COUNT(CASE WHEN peakPeriod = 'Afternoon Peak' THEN 1 END) AS `Afternoon Peak`,
+  COUNT(*) AS `Total Crashes`
+ORDER BY `Total Crashes` DESC
+LIMIT 5;
+
+// query f
+MATCH path = (a:Location)-[*3]-(b:Location)
+WHERE a.lgaName < b.lgaName  
+RETURN 
+  a.lgaName AS StartLGA,
+  b.lgaName AS EndLGA,
+  length(path) AS PathLength
+ORDER BY StartLGA, EndLGA
+LIMIT 3;
+
+// query g
+MATCH (p:Killed_Person)-[:KILLED_IN]->(c:Crash),
+      (v:Vehicle)-[:INVOLVED_IN]->(c),
+      (c)-[:HAPPENED_DURING]->(t:TimeInfo),
+      (c)-[:HAPPENED_ON]->(r:Road)
+WHERE p.roadUser CONTAINS 'Pedestrian'
+  AND t.dayType = 'Weekday'
+  AND (v.busInvolvement = 'Yes' OR v.heavyRigidTruckInvolvement = 'Yes')
+  AND (r.speedLimit < 40 OR r.speedLimit >= 100)
+WITH DISTINCT 
+     c.crashID AS crashID,
+     t.timeOfDay AS `Time of Day`,
+     p.ageGroup AS `Age Group`,
+     CASE 
+       WHEN v.busInvolvement = 'Yes' THEN 'Bus'
+       ELSE 'Heavy Rigid Truck'
+     END AS `Vehicle Type`,
+     r.speedLimit AS `Speed Limit`
+RETURN 
+  `Time of Day`,
+  `Age Group`,
+  `Vehicle Type`,
+  `Speed Limit`,
+  COUNT(*) AS `Crash Count`
+ORDER BY `Time of Day`, `Age Group`;
+
+// SECTION 4: Self-designed Queries 
+
+// query 1
+MATCH (p:Killed_Person)-[:KILLED_IN]->(c:Crash),
+      (c)<-[:INVOLVED_IN]-(v:Vehicle),
+      (c)-[:HAPPENED_DURING]->(t:TimeInfo),
+      (c)-[:HAPPENED_ON]->(r:Road),
+      (c)-[:LOCATED_IN]->(loc:Location)
+WHERE p.roadUser = 'Pedestrian'
+  AND (
+    p.ageGroup = '17_to_25' OR
+    p.gender = 'Female'
+  )
+  AND t.year >= 2020
+  AND (
+    v.busInvolvement = 'Yes' OR 
+    v.heavyRigidTruckInvolvement = 'Yes' OR 
+    v.articulatedTruckInvolvement = 'Yes'
+  )
+  AND r.speedLimit >= 100
+WITH 
+  loc.state AS `State`,
+  CASE
+    WHEN t.timeOfDay IN ['Evening', 'Night', 'Early Morning'] THEN 'Night'
+    ELSE 'Day'
+  END AS `Time of Day`,
+  COUNT(DISTINCT c) AS `Crash Count`
+RETURN 
+  `State`, `Time of Day`, `Crash Count`
+ORDER BY `State` ASC, `Time of Day` DESC;
+
+// query 2
+MATCH (p:Killed_Person)-[:KILLED_IN]->(c:Crash),
+      (c)<-[:INVOLVED_IN]-(v:Vehicle),
+      (c)-[:HAPPENED_ON]->(r:Road),
+      (c)-[:LOCATED_IN]->(loc:Location),
+      (c)-[:HAPPENED_DURING]->(t:TimeInfo)
+WHERE t.year >= 2020
+  AND (
+    t.christmasPeriod = 'Yes' OR 
+    t.easterPeriod = 'Yes'
+  )
+  AND (
+    v.busInvolvement = 'Yes' OR 
+    v.heavyRigidTruckInvolvement = 'Yes' OR 
+    v.articulatedTruckInvolvement = 'Yes'
+  )
+  AND loc.nationalRemotenessAreas <> 'Major Cities of Australia'
+WITH 
+  CASE 
+    WHEN t.christmasPeriod = 'Yes' THEN 'Christmas'
+    ELSE 'Easter'
+  END AS `Holiday Period`,
+  t.timeOfDay AS `Time of Day`,
+  r.nationalRoadType AS `Road Type`,
+  loc.nationalRemotenessAreas AS `Remoteness`,
+  c AS crash,
+  p AS victim
+WITH 
+  `Holiday Period`, `Time of Day`, `Road Type`, `Remoteness`,
+  COUNT(DISTINCT crash) AS `Crash Count`,
+  COUNT(victim) AS `Total Fatalities`
+RETURN 
+  `Holiday Period`, `Time of Day`, `Road Type`, `Remoteness`, `Crash Count`, `Total Fatalities`
+ORDER BY `Holiday Period`, `Total Fatalities` DESC, `Crash Count` DESC;

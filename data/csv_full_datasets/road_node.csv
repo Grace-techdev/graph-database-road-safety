@@ -1,0 +1,81 @@
+roadID,Speed Limit,National Road Type
+1,100,Arterial Road
+2,80,Local Road
+3,50,Local Road
+4,100,National or State Highway
+5,100,Sub-arterial Road
+6,60,Local Road
+7,70,National or State Highway
+8,110,National or State Highway
+9,100,Local Road
+10,80,Collector Road
+11,60,National or State Highway
+12,60,Collector Road
+13,40,Collector Road
+14,50,National or State Highway
+15,70,Sub-arterial Road
+16,80,National or State Highway
+17,50,Collector Road
+18,90,Sub-arterial Road
+19,60,Arterial Road
+20,100,Collector Road
+21,80,Arterial Road
+22,90,National or State Highway
+23,80,Sub-arterial Road
+24,60,Sub-arterial Road
+25,70,Arterial Road
+26,10,Pedestrian Thoroughfare
+27,40,Sub-arterial Road
+28,70,Local Road
+29,50,Arterial Road
+30,50,Sub-arterial Road
+31,110,Collector Road
+32,60,Access road
+33,90,Local Road
+34,110,Arterial Road
+35,70,Collector Road
+36,40,Local Road
+37,50,Access road
+38,100,Access road
+39,80,Pedestrian Thoroughfare
+40,40,Arterial Road
+41,110,Sub-arterial Road
+42,130,National or State Highway
+43,80,Access road
+44,10,Local Road
+45,80,Busway
+46,70,Access road
+47,40,National or State Highway
+48,90,Arterial Road
+49,25,Collector Road
+50,110,Local Road
+51,20,Pedestrian Thoroughfare
+52,130,Arterial Road
+53,70,Pedestrian Thoroughfare
+54,20,National or State Highway
+55,20,Arterial Road
+56,5,Collector Road
+57,30,Arterial Road
+58,20,Access road
+59,10,Collector Road
+60,40,Access road
+61,50,Pedestrian Thoroughfare
+62,130,Access road
+63,50,Busway
+64,110,Access road
+65,20,Local Road
+66,30,Pedestrian Thoroughfare
+67,100,Busway
+68,90,Collector Road
+69,30,National or State Highway
+70,60,Pedestrian Thoroughfare
+71,10,National or State Highway
+72,40,Pedestrian Thoroughfare
+73,25,Arterial Road
+74,15,Local Road
+75,25,Sub-arterial Road
+76,30,Sub-arterial Road
+77,10,Arterial Road
+78,5,Local Road
+79,75,Collector Road
+80,100,Pedestrian Thoroughfare
